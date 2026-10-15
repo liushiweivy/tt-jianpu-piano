@@ -1,0 +1,25 @@
+{
+  "description": "简谱钢琴（输入简谱自动演奏 + 跟弹判定的竖屏抖音小游戏）",
+  "packOptions": {
+    "ignore": [
+      { "type": "folder", "value": "tests" },
+      { "type": "folder", "value": "harness" },
+      { "type": "folder", "value": "docs" },
+      { "type": "file", "value": "start.bat" },
+      { "type": "file", "value": "README.md" },
+      { "type": "file", "value": "PROGRESS.md" },
+      { "type": "file", "value": ".gitignore" }
+    ]
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": false,
+    "minified": false
+  },
+  "compileType": "game",
+  "appid": "",
+  "projectname": "tt-jianpu-piano",
+  "libVersion": "latest",
+  "condition": {}
+}

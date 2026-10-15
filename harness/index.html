@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=450, initial-scale=1, user-scalable=no">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2315121f'/%3E%3Ctext x='8' y='12' font-size='11' text-anchor='middle' fill='%23e8b365'%3E%E2%99%AA%3C/text%3E%3C/svg%3E">
+<title>简谱钢琴 · harness</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #0b0912; height: 100%; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #frame { width: 450px; height: 800px; box-shadow: 0 0 40px rgba(0,0,0,.8); }
+  canvas { display: block; width: 450px; height: 800px; touch-action: none; }
+</style>
+</head>
+<body>
+<div id="frame">
+  <canvas id="game" width="450" height="800"></canvas>
+</div>
+<script>
+/* ---- 极简 CommonJS 加载器（同步 XHR） ---- */
+const modules = {};
+function resolve(p, fromDir) {
+  const base = (fromDir || '').split('/').slice(0, -1);
+  p.split('/').forEach(seg => {
+    if (seg === '..') base.pop();
+    else if (seg !== '.' && seg !== '') base.push(seg);
+  });
+  return base.join('/');
+}
+function load(path, fromDir) {
+  const full = resolve(path, fromDir || '');
+  if (modules[full]) return modules[full].exports;
+  const m = { exports: {} };
+  modules[full] = m;
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', '/' + full, false);
+  xhr.send();
+  if (xhr.status !== 200) throw new Error('load fail ' + full + ' ' + xhr.status);
+  const fn = new Function('module', 'exports', 'require', '__dirname', xhr.responseText);
+  const localRequire = p => load(p, full);
+  fn(m, m.exports, localRequire, full.split('/').slice(0, -1).join('/'));
+  return m.exports;
+}
+
+/* ---- tt（抖音小游戏）浏览器 shim ---- */
+// ?sound=1  有声模式（真实浏览器 AudioContext）
+// ?strict=1 严格抖音契约：Touch 只给 identifier/screenX/screenY
+const Q = new URLSearchParams(location.search);
+const SOUND = Q.get('sound') === '1';
+const STRICT = Q.get('strict') === '1';
+const canvas = document.getElementById('game');
+const rectOf = () => canvas.getBoundingClientRect();
+function touchLike(e, id) {
+  const r = rectOf();
+  const x = e.clientX - r.left, y = e.clientY - r.top;
+  const t = { identifier: id != null ? id : 0, screenX: x, screenY: y };
+  if (!STRICT) { t.clientX = x; t.clientY = y; }
+  return t;
+}
+const startH = [], moveH = [], endH = [], cancelH = [], showH = [], hideH = [];
+const kbInputH = [], kbConfirmH = [], kbCompleteH = [];
+globalThis.tt = {
+  getSystemInfoSync: () => ({ windowWidth: 450, windowHeight: 800, pixelRatio: 1, screenWidth: 450, screenHeight: 800 }),
+  createCanvas: () => canvas,
+  onTouchStart: h => startH.push(h),
+  onTouchMove: h => moveH.push(h),
+  onTouchEnd: h => endH.push(h),
+  onTouchCancel: h => cancelH.push(h),
+  onShow: h => showH.push(h),
+  onHide: h => hideH.push(h),
+  setKeepScreenOn: () => {},
+  showToast: o => console.log('[toast]', o.title),
+  vibrateShort: () => {},
+  getAudioContext: () => {
+    if (!SOUND) throw new Error("muted in harness");
+    return new AudioContext();
+  },
+
+  /* ---- 系统键盘桩 ---- */
+  showKeyboard(o) { this._kb.value = o.defaultValue || ''; this._kb.open = true; },
+  hideKeyboard() { this._kb.open = false; },
+  onKeyboardInput: h => kbInputH.push(h),
+  onKeyboardConfirm: h => kbConfirmH.push(h),
+  onKeyboardComplete: h => kbCompleteH.push(h),
+  _kb: {
+    open: false, value: '',
+    set(v) { this.value = v; kbInputH.forEach(h => h({ detail: { value: v } })); },
+    confirm() { const v = this.value; kbConfirmH.forEach(h => h({ detail: { value: v } })); this.open = false; },
+    complete() { kbCompleteH.forEach(h => h({ detail: { value: this.value } })); this.open = false; },
+  },
+
+  _life: {
+    show: () => showH.forEach(h => h()),
+    hide: () => hideH.forEach(h => h()),
+  },
+};
+function dispatch(list, ev) { list.forEach(h => h(ev)); }
+canvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  dispatch(startH, { changedTouches: [touchLike(e)] });
+});
+window.addEventListener('mousemove', e => {
+  if (e.buttons & 1) dispatch(moveH, { changedTouches: [touchLike(e)] });
+});
+window.addEventListener('mouseup', e => dispatch(endH, { changedTouches: [touchLike(e)] }));
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  dispatch(startH, { changedTouches: [].map.call(e.changedTouches, t => touchLike(t, t.identifier)) });
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  dispatch(moveH, { changedTouches: [].map.call(e.changedTouches, t => touchLike(t, t.identifier)) });
+}, { passive: false });
+window.addEventListener('touchend', e => dispatch(endH, { changedTouches: [].map.call(e.changedTouches, t => touchLike(t, t.identifier)) }));
+window.addEventListener('touchcancel', e => dispatch(cancelH, { changedTouches: [].map.call(e.changedTouches, t => touchLike(t, t.identifier)) }));
+
+/* ---- 启动小游戏 ---- */
+load('js/main.js');
+</script>
+</body>
+</html>
